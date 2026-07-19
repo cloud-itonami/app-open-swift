@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="open-swift-screening"
+             name="Settlement Screening"
+             namespace="https://etzhayyim.com/dmn/open-swift">
+  <decision id="openSwift.screening" name="Settlement Screening">
+    <decisionTable id="dt_screening" hitPolicy="FIRST">
+      <input id="i_sanctioned" label="sanctionedJurisdiction">
+        <inputExpression typeRef="boolean"><text>sanctionedJurisdiction</text></inputExpression>
+      </input>
+      <input id="i_amount" label="amount">
+        <inputExpression typeRef="number"><text>amount</text></inputExpression>
+      </input>
+      <input id="i_cover" label="coverPayment">
+        <inputExpression typeRef="boolean"><text>coverPayment</text></inputExpression>
+      </input>
+
+      <output id="o_decision" label="decision" name="decision" typeRef="string"/>
+      <output id="o_reason" label="reason" name="reason" typeRef="string"/>
+      <output id="o_requireManualReview" label="requireManualReview" name="requireManualReview" typeRef="boolean"/>
+
+      <rule id="r1">
+        <inputEntry><text>true</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"REJECT"</text></outputEntry>
+        <outputEntry><text>"SanctionedJurisdiction"</text></outputEntry>
+        <outputEntry><text>true</text></outputEntry>
+      </rule>
+      <rule id="r2">
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>&gt;= 10000000</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"REVIEW"</text></outputEntry>
+        <outputEntry><text>"LargeAmount"</text></outputEntry>
+        <outputEntry><text>true</text></outputEntry>
+      </rule>
+      <rule id="r3">
+        <inputEntry><text>false</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>true</text></inputEntry>
+        <outputEntry><text>"REVIEW"</text></outputEntry>
+        <outputEntry><text>"CoverPayment"</text></outputEntry>
+        <outputEntry><text>true</text></outputEntry>
+      </rule>
+      <rule id="r4">
+        <inputEntry><text>false</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>false</text></inputEntry>
+        <outputEntry><text>"APPROVE"</text></outputEntry>
+        <outputEntry><text>"OK"</text></outputEntry>
+        <outputEntry><text>false</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

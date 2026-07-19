@@ -1,0 +1,23 @@
+{
+  "$schema": "https://etzhayyim.com/schemas/camunda-form/v1",
+  "formKey": "openSwift.registerInstitution.v1",
+  "name": "Register Institution",
+  "version": 1,
+  "lexiconRef": "com.etzhayyim.apps.openSwift.registerInstitution",
+  "components": [
+    { "key": "bic", "label": "BIC (ISO 9362)", "type": "textfield",
+      "validate": { "required": true, "pattern": "^[A-Z0-9]{8}([A-Z0-9]{3})?$" } },
+    { "key": "institutionDid", "label": "Institution DID", "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" } },
+    { "key": "legalName", "label": "Legal name", "type": "textfield",
+      "validate": { "required": true, "maxLength": 256 } },
+    { "key": "country", "label": "Country (ISO-3166 alpha-2)", "type": "textfield",
+      "validate": { "required": true, "pattern": "^[A-Z]{2}$" } },
+    { "key": "currencies", "label": "Settlement currencies (CSV ISO 4217)", "type": "textfield",
+      "validate": { "required": true } }
+  ],
+  "variableMappings": {
+    "bic": "bic", "institutionDid": "institutionDid", "legalName": "legalName",
+    "country": "country", "currencies": "currencies"
+  }
+}

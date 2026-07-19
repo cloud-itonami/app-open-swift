@@ -1,0 +1,33 @@
+{
+  "viewId": "open-swift.AV-1",
+  "viewType": "AV-1",
+  "title": "Overview and Summary Information",
+  "did": "did:web:open-swift.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "purpose": "Provide a DID-addressed interbank messaging service (ISO 20022 / pacs.008-equivalent customer credit transfer) as an auditable, open-source reference implementation. Companion to open-banking.",
+    "scope": {
+      "in": ["participant institution registry (BIC + DID)", "FI-to-FI customer credit transfer (pacs.008-style)", "ACK / NACK (pacs.002 / camt.029-style)", "settlement screening DMN"],
+      "out": ["gpi tracker", "FI-to-FI direct (pacs.009)", "liquidity / netting / settlement", "HSM key custody"]
+    },
+    "architectureDescriptionContext": {
+      "mission": "Provide tamper-evident, DID-native interbank wire messaging open to any AT Protocol client.",
+      "stakeholders": ["banks (DIDs)", "compliance", "regulators", "auditors"],
+      "environment": "Cloudflare Workers + D1",
+      "standards": ["AT Protocol XRPC", "DoDAF v2.02", "BPMN 2.0", "DMN 1.3", "Camunda Forms", "ISO 20022 (pacs.008/pacs.002/camt.029-aligned)", "ISO 9362 BIC", "ISO 4217 currency"]
+    },
+    "toolsAndMethods": [
+      "XRPC Lexicons (com.etzhayyim.apps.openSwift.*)",
+      "BPMN 2.0 (registerInstitution, customerCreditTransfer)",
+      "DMN 1.3 (screening)",
+      "Camunda Forms",
+      "UETR (UUIDv4) end-to-end correlation"
+    ],
+    "findings": "MVP proven. UETR + ACK chain provides tamper-evident message lineage. Screening DMN gates approval / review / reject paths. AT Protocol audit feed gives federated visibility.",
+    "recommendations": "Add gpi-style status tracker, integrate open-banking transfer settlement, add cryptographic message signing via auth-vault."
+  },
+  "refs": {
+    "viewIds": ["open-swift.OV-1", "open-swift.OV-5b", "open-swift.OV-6a", "open-swift.CV-2", "open-swift.SV-1"]
+  },
+  "version": 1
+}

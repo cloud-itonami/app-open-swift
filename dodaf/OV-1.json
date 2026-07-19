@@ -1,0 +1,28 @@
+{
+  "viewId": "open-swift.OV-1",
+  "viewType": "OV-1",
+  "title": "High-Level Operational Concept Graphic",
+  "did": "did:web:open-swift.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "operationalNodes": [
+      { "id": "debtorAgent",     "label": "Debtor Agent (sender FI, DID)" },
+      { "id": "creditorAgent",   "label": "Creditor Agent (beneficiary FI, DID)" },
+      { "id": "swift",           "label": "open-swift.etzhayyim.com (Worker)" },
+      { "id": "store",           "label": "D1 (institutions/messages/ack SSoT)" },
+      { "id": "pds",             "label": "atproto.etzhayyim.com (PDS, public audit)" },
+      { "id": "regulator",       "label": "Banking Regulator (DID)" }
+    ],
+    "operationalFlows": [
+      { "from": "debtorAgent",   "to": "swift",         "label": "XRPC sendCustomerCreditTransfer (pacs.008-style)" },
+      { "from": "swift",         "to": "store",         "label": "INSERT message (status=PENDING)" },
+      { "from": "swift",         "to": "creditorAgent", "label": "deliver message (PDS firehose, follow-based)" },
+      { "from": "creditorAgent", "to": "swift",         "label": "XRPC acknowledgeMessage (pacs.002 / camt.029)" },
+      { "from": "swift",         "to": "pds",           "label": "app.bsky.feed.post (participant audit, amount-redacted)" },
+      { "from": "pds",           "to": "regulator",     "label": "follow firehose" }
+    ],
+    "narrative": "The debtor agent submits an ISO 20022 customer credit transfer to open-swift. Settlement screening DMN gates approval. Approved messages are persisted with a UETR; the creditor agent acknowledges with ACK or NACK, completing the lifecycle. A redacted public marker is posted for federated audit."
+  },
+  "refs": { "viewIds": ["open-swift.SV-1", "open-swift.OV-5b"] },
+  "version": 1
+}

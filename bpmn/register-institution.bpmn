@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="open-swift-register-institution"
+                  targetNamespace="https://etzhayyim.com/bpmn/open-swift">
+  <bpmn:process id="registerInstitution" name="Register Institution" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Init" name="Onboarding request"/>
+    <bpmn:sequenceFlow id="f1" sourceRef="StartEvent_Init" targetRef="Task_CollectForm"/>
+    <bpmn:userTask id="Task_CollectForm" name="Collect institution form"
+                   camunda:formKey="openSwift.registerInstitution.v1"/>
+    <bpmn:sequenceFlow id="f2" sourceRef="Task_CollectForm" targetRef="Task_Persist"/>
+    <bpmn:serviceTask id="Task_Persist" name="com.etzhayyim.apps.openSwift.registerInstitution"
+                      camunda:topic="com.etzhayyim.apps.openSwift.registerInstitution"/>
+    <bpmn:sequenceFlow id="f3" sourceRef="Task_Persist" targetRef="EndEvent_Done"/>
+    <bpmn:endEvent id="EndEvent_Done" name="Institution registered"/>
+  </bpmn:process>
+</bpmn:definitions>

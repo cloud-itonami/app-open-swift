@@ -1,0 +1,39 @@
+{
+  "$schema": "https://etzhayyim.com/schemas/camunda-form/v1",
+  "formKey": "openSwift.customerCreditTransfer.v1",
+  "name": "Customer Credit Transfer",
+  "version": 1,
+  "lexiconRef": "com.etzhayyim.apps.openSwift.sendCustomerCreditTransfer",
+  "components": [
+    { "key": "debtorAgentBic", "label": "Debtor Agent BIC", "type": "textfield",
+      "validate": { "required": true, "pattern": "^[A-Z0-9]{8}([A-Z0-9]{3})?$" } },
+    { "key": "creditorAgentBic", "label": "Creditor Agent BIC", "type": "textfield",
+      "validate": { "required": true, "pattern": "^[A-Z0-9]{8}([A-Z0-9]{3})?$" } },
+    { "key": "debtorName", "label": "Debtor name", "type": "textfield",
+      "validate": { "required": true, "maxLength": 256 } },
+    { "key": "debtorAccount", "label": "Debtor account (IBAN or local)", "type": "textfield",
+      "validate": { "required": true, "maxLength": 64 } },
+    { "key": "creditorName", "label": "Creditor name", "type": "textfield",
+      "validate": { "required": true, "maxLength": 256 } },
+    { "key": "creditorAccount", "label": "Creditor account (IBAN or local)", "type": "textfield",
+      "validate": { "required": true, "maxLength": 64 } },
+    { "key": "amount", "label": "Amount (settlement)", "type": "number",
+      "validate": { "required": true, "min": 0.01 } },
+    { "key": "currency", "label": "Currency (ISO 4217)", "type": "textfield",
+      "validate": { "required": true, "pattern": "^[A-Z]{3}$" } },
+    { "key": "valueDate", "label": "Value date (YYYY-MM-DD)", "type": "textfield",
+      "validate": { "required": true, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" } },
+    { "key": "remittanceInfo", "label": "Remittance information", "type": "textfield",
+      "validate": { "maxLength": 140 } },
+    { "key": "coverPayment", "label": "Cover payment?", "type": "checkbox", "defaultValue": false },
+    { "key": "sanctionedJurisdiction", "label": "Sanctioned jurisdiction touched?", "type": "checkbox", "defaultValue": false }
+  ],
+  "variableMappings": {
+    "debtorAgentBic": "debtorAgentBic", "creditorAgentBic": "creditorAgentBic",
+    "debtorName": "debtorName", "debtorAccount": "debtorAccount",
+    "creditorName": "creditorName", "creditorAccount": "creditorAccount",
+    "amount": "amount", "currency": "currency", "valueDate": "valueDate",
+    "remittanceInfo": "remittanceInfo", "coverPayment": "coverPayment",
+    "sanctionedJurisdiction": "sanctionedJurisdiction"
+  }
+}

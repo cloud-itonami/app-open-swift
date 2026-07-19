@@ -1,0 +1,35 @@
+{
+  "viewId": "open-swift.CV-2",
+  "viewType": "CV-2",
+  "title": "Capability Taxonomy",
+  "did": "did:web:open-swift.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "capabilities": [
+      {
+        "id": "cap.directory", "name": "Participant directory",
+        "children": [
+          { "id": "cap.regInst",  "name": "Register institution", "realisedBy": "com.etzhayyim.apps.openSwift.registerInstitution" },
+          { "id": "cap.listInst", "name": "List institutions",    "realisedBy": "com.etzhayyim.apps.openSwift.listInstitutions" }
+        ]
+      },
+      {
+        "id": "cap.messaging", "name": "Interbank messaging",
+        "children": [
+          { "id": "cap.sendCct",   "name": "Send customer credit transfer", "realisedBy": "com.etzhayyim.apps.openSwift.sendCustomerCreditTransfer" },
+          { "id": "cap.ack",       "name": "Acknowledge / NACK",            "realisedBy": "com.etzhayyim.apps.openSwift.acknowledgeMessage" },
+          { "id": "cap.getMessage","name": "Query message",                 "realisedBy": "com.etzhayyim.apps.openSwift.getMessage" },
+          { "id": "cap.listMessage","name": "List messages",                "realisedBy": "com.etzhayyim.apps.openSwift.listMessages" }
+        ]
+      },
+      {
+        "id": "cap.compliance", "name": "Compliance",
+        "children": [
+          { "id": "cap.screening", "name": "Settlement screening", "realisedBy": "openSwift.screening (DMN)" }
+        ]
+      }
+    ]
+  },
+  "refs": { "viewIds": ["open-swift.OV-5b", "open-swift.SV-1"] },
+  "version": 1
+}

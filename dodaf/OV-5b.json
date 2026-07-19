@@ -1,0 +1,39 @@
+{
+  "viewId": "open-swift.OV-5b",
+  "viewType": "OV-5b",
+  "title": "Operational Activity Model",
+  "did": "did:web:open-swift.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "activities": [
+      { "id": "act.registerInstitution", "name": "Register Institution", "type": "bpmn",
+        "bpmnProcessKey": "registerInstitution", "source": "bpmn/register-institution.bpmn",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openSwift.registerInstitution" },
+          { "form": "openSwift.registerInstitution.v1" }
+        ] },
+      { "id": "act.creditTransfer", "name": "Customer Credit Transfer", "type": "bpmn",
+        "bpmnProcessKey": "customerCreditTransfer", "source": "bpmn/credit-transfer.bpmn",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openSwift.sendCustomerCreditTransfer" },
+          { "form": "openSwift.customerCreditTransfer.v1" },
+          { "dmn":  "openSwift.screening" }
+        ] },
+      { "id": "act.acknowledge", "name": "Acknowledge Message", "type": "xrpc",
+        "realisedBy": [{ "xrpc": "com.etzhayyim.apps.openSwift.acknowledgeMessage" }] },
+      { "id": "act.queryMessage", "name": "Query Messages", "type": "xrpc",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openSwift.getMessage" },
+          { "xrpc": "com.etzhayyim.apps.openSwift.listMessages" },
+          { "xrpc": "com.etzhayyim.apps.openSwift.listInstitutions" }
+        ] }
+    ]
+  },
+  "refs": {
+    "bpmnProcessKeys": ["registerInstitution", "customerCreditTransfer"],
+    "dmnDecisionKeys": ["openSwift.screening"],
+    "formKeys": ["openSwift.registerInstitution.v1", "openSwift.customerCreditTransfer.v1"],
+    "viewIds": ["open-swift.OV-6a", "open-swift.SV-1"]
+  },
+  "version": 1
+}

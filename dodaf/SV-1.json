@@ -1,0 +1,36 @@
+{
+  "viewId": "open-swift.SV-1",
+  "viewType": "SV-1",
+  "title": "Systems Interface Description",
+  "did": "did:web:open-swift.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "systems": [
+      {
+        "id": "sys.worker", "name": "open-swift Worker",
+        "platform": "Cloudflare Workers", "entrypoint": "worker/src/app.ts",
+        "interfaces": [
+          { "id": "if.xrpc.registerInstitution",         "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openSwift.registerInstitution" },
+          { "id": "if.xrpc.listInstitutions",            "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openSwift.listInstitutions" },
+          { "id": "if.xrpc.sendCustomerCreditTransfer",  "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openSwift.sendCustomerCreditTransfer" },
+          { "id": "if.xrpc.acknowledgeMessage",          "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openSwift.acknowledgeMessage" },
+          { "id": "if.xrpc.getMessage",                  "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openSwift.getMessage" },
+          { "id": "if.xrpc.listMessages",                "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openSwift.listMessages" }
+        ]
+      },
+      { "id": "sys.d1", "name": "Cloudflare D1 (SQLite)", "platform": "D1",
+        "tables": ["institutions", "messages", "acknowledgements"] },
+      { "id": "sys.pds",  "name": "atproto.etzhayyim.com PDS", "platform": "Service binding",
+        "interfaces": [{ "id": "if.pds.post", "kind": "wRPC", "method": "app.bsky.feed.post" }] },
+      { "id": "sys.auth", "name": "auth.etzhayyim.com", "platform": "Service binding",
+        "interfaces": [{ "id": "if.auth.resolveCaller", "kind": "wRPC", "method": "resolveCallerDid" }] }
+    ],
+    "connections": [
+      { "from": "sys.worker", "to": "sys.d1",   "protocol": "D1 binding" },
+      { "from": "sys.worker", "to": "sys.pds",  "protocol": "Service binding (wRPC)" },
+      { "from": "sys.worker", "to": "sys.auth", "protocol": "Service binding (wRPC)" }
+    ]
+  },
+  "refs": { "viewIds": ["open-swift.OV-1", "open-swift.CV-2"] },
+  "version": 1
+}

@@ -1,0 +1,47 @@
+{
+  "viewId": "open-swift.OV-6a",
+  "viewType": "OV-6a",
+  "title": "Operational Rules Model",
+  "did": "did:web:open-swift.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "businessRules": [
+      {
+        "id": "rule.bicFormat",
+        "statement": "Institution BIC MUST match ISO 9362 (8 or 11 alnum chars). Each BIC MUST map to exactly one DID.",
+        "kind": "constraint",
+        "enforcedBy": "worker/src/app.ts:registerInstitution() validation + UNIQUE(bic)"
+      },
+      {
+        "id": "rule.uetrUnique",
+        "statement": "Every credit-transfer message gets a fresh UETR (UUIDv4). Resubmission with the same uetr returns the original (idempotency).",
+        "kind": "invariant",
+        "enforcedBy": "PRIMARY KEY (uetr) + retrieval-on-conflict"
+      },
+      {
+        "id": "rule.screening",
+        "statement": "screening.decision: sanctioned → REJECT; amount ≥ 10M → REVIEW; coverPayment & not sanctioned → REVIEW; else APPROVE.",
+        "kind": "decisionTable",
+        "dmnDecisionKey": "openSwift.screening",
+        "source": "dmn/screening.dmn"
+      },
+      {
+        "id": "rule.ackChain",
+        "statement": "An acknowledgement MUST reference an existing PENDING message by uetr. Status transitions: PENDING → SETTLED (ACK) | REJECTED (NACK).",
+        "kind": "invariant",
+        "enforcedBy": "worker/src/app.ts:acknowledgeMessage() FK + status guard"
+      },
+      {
+        "id": "rule.appendOnlyMessage",
+        "statement": "Message rows are insert-once. status updates limited to ACK/NACK transition; original payload is immutable.",
+        "kind": "invariant",
+        "enforcedBy": "no general UPDATE on messages.payload_json"
+      }
+    ]
+  },
+  "refs": {
+    "dmnDecisionKeys": ["openSwift.screening"],
+    "viewIds": ["open-swift.OV-5b"]
+  },
+  "version": 1
+}
