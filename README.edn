@@ -1,1 +1,1 @@
-{:schema "etzhayyim.repository/v1" :name "com-etzhayyim-app-open-swift" :kind :app :canonical-metadata :edn}
+{:schema "etzhayyim.repository/v1" :name "app-open-swift" :kind :app :canonical-metadata :edn}
