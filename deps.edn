@@ -1,0 +1,24 @@
+;; app-open-swift — the open-swift appview.
+;;
+;; The Worker is ClojureScript, per the repo-wide runtime order in the
+;; superproject CLAUDE.md (kotoba wasm > clojurewasm > ClojureScript > nbb).
+;; Keeping the entry in cljs rather than .kotoba is ADR-2606290000's standing
+;; call: kotoba's ingress capability is :native-aot/:wasm-aot pending. The
+;; decision-shaped parts live in .cljc so they are testable without a browser,
+;; and are the first thing that moves to .kotoba when ingress qualifies.
+;;
+;; NOTE this file governs ONLY the appview. `kotoba/` is a separate, working
+;; TypeScript library with its own package.json and its own test suite; it is
+;; not in this bundle and was deliberately left alone (README S2).
+{:paths ["src"]
+ :deps {io.github.kotoba-lang/jp-go-digital-design-system
+        {:git/url "https://github.com/kotoba-lang/jp-go-digital-design-system"
+         :git/sha "2e2d191e9e1731ce6865c79dab163a5d74249053"}}
+ :aliases
+ {:cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}
+                      thheller/shadow-cljs {:mvn/version "2.28.20"}}}
+  :test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}}}

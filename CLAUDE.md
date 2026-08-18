@@ -1,10 +1,33 @@
 # open-swift.etzhayyim.com — Interbank Messaging (ISO 20022 / pacs.008-style) (OSS)
 
-**Status**: MVP scaffold (2026-04-20). Reference implementation for
-DID-addressed interbank wire-transfer messaging — companion to
-`open-banking`. Apache-2.0.
+**Status**: appview migrated to ClojureScript (2026-08-19, `docs/adr/0001`).
+Reference implementation for DID-addressed interbank wire-transfer messaging —
+companion to `open-banking`. Apache-2.0.
 
-## Scope (MVP)
+## What is actually deployed
+
+The Worker is **ClojureScript**, built by **shadow-cljs** (`:target :esm`) from
+`src/openswift/` to `dist/worker.js`, which is what `worker/wrangler.jsonc`'s
+`main` points at.
+
+| Route | Origin |
+|---|---|
+| `GET /` — this appview's description page (jp-go-dds) | ported |
+| `POST /xrpc/:nsid` — relay to the MCP router | ported |
+| `OPTIONS /xrpc/*` — CORS preflight (204) | ported |
+| `GET /health` — liveness | **added by the migration** |
+
+**The relay target `mcp.etzhayyim.com` does not resolve** (measured 2026-08-19,
+`dig +short` empty). The route is kept because it is the deployed behaviour; it
+answers 502 naming the URL it tried. Deploying or retiring that host is a
+separate decision.
+
+## Scope (design intent — NOT what the deployed Worker answers)
+
+These six NSIDs are the domain design. The deployed Worker does **not**
+implement them; it relays whatever nsid it is given to the MCP router.
+`kotoba/` implements eight of them against an AT PDS, but is a library with no
+HTTP entry.
 
 | NSID | Type | Description |
 |---|---|---|
@@ -15,18 +38,16 @@ DID-addressed interbank wire-transfer messaging — companion to
 | `com.etzhayyim.apps.openSwift.getMessage` | query | message detail (status + audit trail) |
 | `com.etzhayyim.apps.openSwift.listMessages` | query | messages by institution / direction / status / since |
 
-## Architecture
+## `kotoba/` — a separate, working TypeScript library
 
-- **Runtime**: Single CF Worker (`src/app.ts`)
-- **Storage**: D1. Tables: `institutions`, `messages`, `acknowledgements`
-- **Identity**: institution = path-based DID
-  `did:web:open-swift.etzhayyim.com:institution:{bic}`
-- **Message UETR**: each message gets a UUIDv4 (Unique End-to-End Transaction
-  Reference) — same idea as ISO 20022 `UETR`
-- **Settlement screening** by DMN (`openSwift.screening`):
-  amount + sanctioned-jurisdiction flag + cover-payment indicator → `{decision, reason, requireManualReview}`
-- **Audit**: every `sendCustomerCreditTransfer` emits `app.bsky.feed.post`
-  to the participant feed (large-tx public marker, amount-redacted)
+`kotoba/` is **not** part of the appview and was **not** migrated. It is an
+independent library (its own `package.json`, `tsconfig.json`, `vitest.config.ts`)
+implementing the registry on an AT PDS via `@etzhayyim/sdk`. Measured
+2026-08-19: `npm install` exit 0, `tsc --noEmit` exit 0, **vitest 7 passed**.
+
+It is in no bundle and referenced by nothing the migration replaced, so it is
+not dead code and was not deleted. Migrating it is a separate decision that
+needs a cljs face for `@etzhayyim/sdk`. See `README.md` §2.
 
 ## Not in MVP
 
@@ -35,10 +56,14 @@ DID-addressed interbank wire-transfer messaging — companion to
 - liquidity / settlement netting (handled by external clearing)
 - HSM / key custody for message signing
 
-## Local Dev / Deploy
+## Local Dev
+
+There is no D1 binding in `worker/wrangler.jsonc` and no `e7m` on PATH; the
+previous version of this file gave three commands, none of which could run.
+What actually runs is in [`docs/operator-quickstart.md`](docs/operator-quickstart.md):
 
 ```bash
-cd 60-apps/etzhayyim-project-open-swift/worker
-wrangler d1 create etzhayyim-open-swift
-e7m actor deploy .
+npx shadow-cljs release worker          # via the superproject resource guard
+npx nbb scripts/smoke-worker.cljs dist/worker.js
+npx wrangler dev --local --config worker/wrangler.jsonc
 ```

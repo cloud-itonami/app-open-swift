@@ -1,0 +1,132 @@
+(ns openswift.route
+  "Which handler answers a request — as data, decided by a pure function.
+
+  This is `.cljc` and not `.cljs` on purpose. Routing is the part of an edge
+  worker that is worth testing, and it is testable here without a browser, a
+  build, or a network. `openswift.worker` is the only namespace that touches
+  Request/Response, and it does nothing this file has not already decided.
+
+  It is also the first thing that should move to `.kotoba` once the ingress
+  capability qualifies (`:native-aot`/`:wasm-aot` are pending today —
+  ADR-2606290000): a route table is a decision over scalars and strings,
+  which is exactly the shape that survives that move."
+  (:require [clojure.string :as str]))
+
+(def routes
+  "The public surface, as data. The landing page renders THIS, so a route that
+  exists and a route the page advertises cannot drift apart — the defect
+  docs/adr/0001 recorded was a page displaying `Routes 0` and `vars []` beside
+  a wrangler.jsonc declaring one route pattern and four vars.
+
+  `/` and the two `/xrpc/` entries are the PORTED surface: they are what the
+  SvelteKit build actually answered when it was deployed. `/health` is an
+  ADDITION and is marked as one below — see docs/adr/0001."
+  [{:route/path "/"           :route/method :get  :route/kind :page
+    :route/origin :ported
+    :route/doc "この appview の説明ページ"}
+   {:route/path "/health"     :route/method :get  :route/kind :json
+    :route/origin :added
+    :route/doc "生存確認。デプロイされた面が答えることを外から確かめられる"}
+   {:route/path "/xrpc/:nsid" :route/method :post :route/kind :proxy
+    :route/origin :ported
+    :route/doc "XRPC を MCP router へ中継する"}])
+
+(def not-carried-over
+  "移植しなかったもの。**黙って消していない** —— path と、消した理由を
+  実測として持つ。
+
+  ここに並ぶ path は `scripts/verify-docs-claims.cljs` が **tree から不在で
+  あること**を検査する。つまりこの表は散文ではなく、木と突き合わされる主張
+  である。戻ってきたら落ちる。
+
+  `kotoba/` はここに**入らない**。あれは動いている独立ライブラリで、移行の
+  対象ではない（README S2）。"
+  [{:gone/path "worker/src/app.ts"
+    :gone/why "どの package.json からもビルドされず、D1 binding SWIFT_DB は wrangler.jsonc に無い。deploy されたことが無い"}
+   {:gone/path "worker/src/defence-handlers.ts"
+    :gone/why "どこからも import されず、依存 @etzhayyim/kotodama-host-sdk はどの package.json にも宣言が無い"}
+   {:gone/path "worker/src/dodaf-bootstrap.ts"
+    :gone/why "app.ts からのみ読まれる。app.ts と一緒に落ちる"}
+   {:gone/path "worker/svelte/src/routes/+page.svelte"
+    :gone/why "雛形ページ。routeCount 0 / vars [] を焼いていた（この移行が消す欠陥そのもの）"}
+   {:gone/path "worker/svelte/src/routes/xrpc/[...path]/+server.ts"
+    :gone/why "中継そのものは openswift.worker へ移した。SvelteKit の殻だけ落とした"}])
+
+(defn- xrpc-nsid
+  "`/xrpc/<nsid>` の nsid。**空文字だけが nil**。
+
+  多段パス（`/xrpc/a/b`）も通す。移行前の SvelteKit route は rest parameter
+  `[...path]` で受けており、`event.params.path` が空のときだけ 400 にして
+  `a/b` はそのまま tool 名として転送していた（実測: `+server.ts` の
+  `if (!nsid) return … 400`）。ここで 1 セグメントに絞ると挙動が変わる ——
+  NSID に `/` は現れないので上流で失敗するだけだが、**それは移行ではなく
+  方針変更**であり、移行の commit に紛れ込ませるべきものではない。
+
+  同型の移行（cloud-itonami/app-lo、app-ongakuka）で先に正しく行われており、
+  こちらを合わせた。絞りたいなら別の決定として記録する。"
+  [path]
+  (when (str/starts-with? path "/xrpc/")
+    (let [rest' (subs path (count "/xrpc/"))]
+      (when (seq rest') rest'))))
+
+(defn dispatch
+  "method + path → 何をするか。Request も Response も知らない。
+
+  返すのは `{:action …}` で、`:action` は
+  `:page` / `:health` / `:xrpc` / `:cors-preflight` / `:not-found` /
+  `:method-not-allowed` / `:bad-request` のいずれか。"
+  [method path]
+  (let [m (keyword (str/lower-case (or method "get")))
+        p (or path "")]
+    (cond
+      (and (= m :options) (str/starts-with? p "/xrpc/"))
+      {:action :cors-preflight}
+
+      (str/starts-with? p "/xrpc/")
+      (if (= m :post)
+        (if-let [nsid (xrpc-nsid p)]
+          {:action :xrpc :nsid nsid}
+          {:action :bad-request :reason "Missing XRPC method"})
+        {:action :method-not-allowed :allow "POST, OPTIONS"})
+
+      (= p "/health") (if (= m :get)
+                        {:action :health}
+                        {:action :method-not-allowed :allow "GET"})
+      (= p "/")       (if (= m :get)
+                        {:action :page}
+                        {:action :method-not-allowed :allow "GET"})
+      :else {:action :not-found})))
+
+(defn mcp-router-url
+  "env の設定 → MCP router の URL。末尾スラッシュは落とす。
+
+  既定値をここに焼くのは、設定が無いときに黙って何処かへ POST しないためで
+  はなく、**どこへ行くのかを 1 箇所で読めるようにする**ため。移行前の
+  `+server.ts` が持っていた DEFAULT_MCP_ROUTER_URL と同じ値・同じ優先順位
+  （AGENTGATEWAY_MCP_ROUTER_URL → MCP_ROUTER_URL → 既定）である。"
+  [{:keys [AGENTGATEWAY_MCP_ROUTER_URL MCP_ROUTER_URL]}]
+  (let [pick (fn [s] (when (and (string? s) (seq (str/trim s))) (str/trim s)))]
+    (-> (or (pick AGENTGATEWAY_MCP_ROUTER_URL)
+            (pick MCP_ROUTER_URL)
+            "https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message")
+        (str/replace #"/+$" ""))))
+
+(defn unwrap-mcp
+  "MCP router の応答から、呼び手に返す値を取り出す。
+
+  `{:result {:structuredContent X}}` → X、`{:result X}` → X、それ以外は素通し。
+  `{:error …}` は呼び出し側が 502 にするので、ここでは判定だけ返す。
+  移行前の `+server.ts` の剥がし方と同じ。"
+  [payload]
+  (cond
+    (and (map? payload) (contains? payload :error))
+    {:ok? false :error (get-in payload [:error :message] "MCP router returned an error")
+     :upstream payload}
+
+    (and (map? payload) (contains? payload :result))
+    (let [r (:result payload)]
+      {:ok? true :value (if (and (map? r) (contains? r :structuredContent))
+                          (:structuredContent r)
+                          r)})
+
+    :else {:ok? true :value payload}))
