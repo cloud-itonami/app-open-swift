@@ -1,11 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "etzhayyim-open-swift",
-  "main": "svelte/.svelte-kit/cloudflare/_worker.js",
+  // main は shadow-cljs が src/openswift/*.clj{s,c} からビルドする bundle。
+  // 移行前は "svelte/.svelte-kit/cloudflare/_worker.js" —— tree に存在しない
+  // ビルド出力を指しており、読み手が開く TypeScript はどの bundle にも
+  // 入っていなかった（docs/adr/0001）。
+  "main": "../dist/worker.js",
   "compatibility_date": "2026-04-20",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
   "account_id": "4da88288dc30d9ee257f319d3c33ecf0",
   "workers_dev": false,
   "routes": [
@@ -17,16 +18,16 @@
   "vars": {
     "APP_HANDLE": "open-swift.etzhayyim.com",
     "PRIMARY_DID": "did:web:open-swift.etzhayyim.com",
-    "APP_FRAMEWORK": "sveltekit-edge-bff",
+    "APP_FRAMEWORK": "cljs-shadow-esm-worker",
     "AGENTGATEWAY_MCP_ROUTER_URL": "https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message"
   },
   "observability": {
     "enabled": true
-  },
-  "assets": {
-    "directory": "./svelte/.svelte-kit/cloudflare/client",
-    "binding": "ASSETS",
-    "html_handling": "auto-trailing-slash",
-    "not_found_handling": "none"
   }
+  // "assets" は撤去した。svelte/.svelte-kit/cloudflare/client を指していたが、
+  // その directory は移行で消えた（そもそも tree にも無かった）。
+  // "compatibility_flags": ["nodejs_compat"] も撤去した —— SvelteKit の
+  // adapter-cloudflare が要求していたもので、cljs の :esm bundle には要らない。
+  // 憶測ではなく wrangler dev --local で実測してから外した
+  // （docs/operator-quickstart.md S5）。
 }

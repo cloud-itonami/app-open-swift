@@ -1,0 +1,202 @@
+[{:db/id -1
+  :adr/id "app-open-swift-0001"
+  :adr/title "appview を TypeScript/Svelte から ClojureScript へ移す"
+  :adr/status "accepted"
+  :adr/date "2026-08-19"
+  :adr/doc_type "adr"
+  :adr/source-format "edn"
+  :adr/body "
+# ADR-0001: appview を TypeScript/Svelte から ClojureScript へ移す
+
+**Status**: accepted / **Date**: 2026-08-19 / **Deciders**: Jun Kawasaki
+
+## Context
+
+2026-08-18 の測定（README.md の前版）が、この repo に 3 つの面があることを
+記録した。
+
+| 面 | 動くか | deploy されるか |
+|---|---|---|
+| `kotoba/`（TypeScript、AT PDS 上のレジストリ 8 関数） | 動く（vitest 7 passed） | されない（HTTP 入口が無い） |
+| `worker/svelte/`（SvelteKit、route 2 本） | ビルドは通る | **これが deploy される** |
+| `worker/src/app.ts`（398 行、6 XRPC + D1） | **ビルドされない** | されない |
+
+欠陥は 3 つ。
+
+1. **deploy される handler と、読み手が開くファイルが別。** `wrangler.jsonc` の
+   `main` は `svelte/.svelte-kit/cloudflare/_worker.js` —— **tree に存在しない
+   ビルド出力**を指していた（`git ls-files | grep svelte-kit` は 0 件）。
+   一方 `worker/src/app.ts` はこの repo の機能そのものを書いているが、
+   `worker/` に `package.json` も `tsconfig.json` も無く、どの bundle にも
+   入らず、型検査すらされていなかった。
+2. **公開ページが隣の設定と矛盾していた。** `+page.svelte` は
+   `\"routeCount\": 0` / `\"routes\": []` / `\"vars\": []` を literal で焼いて
+   いたが、同じ directory の `wrangler.jsonc` は route 1 本と var 4 個を宣言
+   していた。`relativePath` は切り出し前の
+   `60-apps/etzhayyim-project-open-swift/…` を指したままだった。
+3. **`app.ts` は D1 binding を持たない。** `SWIFT_DB` を 17 箇所で使うが
+   `wrangler.jsonc` に `d1_databases` の項目は無い。
+
+この workspace の正本言語は cljs と kotoba である（superproject CLAUDE.md の
+runtime 順序: kotoba wasm > clojurewasm > ClojureScript > nbb）。TypeScript は
+そこに無いので、上の 2 つの TypeScript のどちらを選んでも正本には着地しない。
+
+## Decision
+
+**appview を ClojureScript に移し、appview の TypeScript と Svelte を撤去する。**
+
+    src/openswift/route.cljc    判断（どの handler が答えるか / 移植しなかったもの）
+    src/openswift/view.cljc     ページ（jp-go-dds の hiccup）
+    src/openswift/worker.cljs   Request/Response に触る唯一の層
+            ↓ shadow-cljs :target :esm
+    dist/worker.js              worker/wrangler.jsonc の main が指すもの
+
+入口を .kotoba ではなく cljs に置くのは ADR-2606290000 の判断で、kotoba の
+ingress capability が :native-aot / :wasm-aot とも pending だからである。
+判断を .cljc に切り出してあるのは、ブラウザもビルドも無しにテストするためで
+あり、ingress が qualify した時に最初に .kotoba へ移る部分だからでもある。
+
+### これで消えた欠陥
+
+- (1) は構造的に消えた。`main` が指す bundle は `src/` からコンパイルされる。
+- (2) も構造的に消えた。ページは route 表（`openswift.route/routes`）を引数で
+  受け取って描く。表示と実際に答えるものが同じ 1 つの値から出る。
+- (3) は、その経路を移植しないことで消えた（下記）。
+
+## `kotoba/` は移さない —— 移行対象ではないから
+
+**`kotoba/` の TypeScript は残した。** これは例外ではなく、範囲の定義である。
+
+- 独立している。`package.json` / `tsconfig.json` / `vitest.config.ts` を自分で
+  持ち、相対 import は自分の中にしか無い。
+- **動く。** 2026-08-19 に clean-room で再実測: `npm install` exit 0
+  （node_modules 75 entries）/ `tsc --noEmit` exit 0 / `vitest` **7 passed**。
+- どの bundle にも入らず、移行が置き換えるものから参照されていない。
+
+つまり dead code ではない。**「TypeScript だから」で消すのは移行ではなく破壊
+である。** 移すには `@etzhayyim/sdk` の cljs 面が要り、それは別の決定である。
+`scripts/verify-docs-claims.cljs` が **7 ファイルという件数と、7 件すべての
+sha256** を固定しているので、黙って増えることも黙って書き換わることもできない。
+
+### 移植しなかった経路（黙って消していない）
+
+正本は `openswift.route/not-carried-over`（データ）で、**ページがそれを描き、
+検証器が tree から不在であることを検査する**。散文ではなく木と突き合わされる。
+
+| path | なぜ |
+|---|---|
+| `worker/src/app.ts` | どの package.json からもビルドされず、`SWIFT_DB` の binding が `wrangler.jsonc` に無い。deploy されたことが無い |
+| `worker/src/defence-handlers.ts` | どこからも import されず、依存 `@etzhayyim/kotodama-host-sdk` はどの package.json にも宣言が無い |
+| `worker/src/dodaf-bootstrap.ts` | `app.ts` からのみ読まれる |
+| `worker/svelte/src/routes/+page.svelte` | 雛形ページ。上記の欠陥 (2) そのもの |
+| `worker/svelte/src/routes/xrpc/[...path]/+server.ts` | 中継そのものは worker.cljs へ移した。SvelteKit の殻だけ落とした |
+
+**DMN の制裁スクリーニング（`app.ts:112-121` の `screen()`）も移していない。**
+この領域で唯一の「判断」であり移したくなるが、それは `app.ts` の中にあり、
+`app.ts` は deploy されたことが無く binding も無い。移せば「動かない経路を
+移植して移行済みと言う」ことになる。`dmn/screening.dmn` は宣言として残る。
+
+### 逆に、中継は残した
+
+`/xrpc/` の中継先 `mcp.etzhayyim.com` は **DNS を解決しない**（2026-08-19 実測、
+`dig +short` が空。対照として apex `etzhayyim.com` は 2 本の A レコードを返す）。
+それでもこの route は残す —— **これは deploy されている挙動**であり、
+「never deployed かつ binding 未宣言」という撤去条件に当たらない。移行前は
+`fetch` に catch が無く、名前解決の失敗は SvelteKit の汎用
+`500 {\"message\":\"Internal Error\"}` に潰れていた。移行後は **502 と、試した
+URL** を返す。到達できなかったことを 200 でも汎用 500 でも隠さない。
+
+### 多段パスは移行前のまま
+
+移行前の `+server.ts` は rest parameter `[...path]` で受け、`event.params.path`
+が空のときだけ 400 にして `a/b` はそのまま tool 名として転送していた。cljs 版も
+**空だけを 400** にする。1 セグメントに絞るのは**移行ではなく方針変更**なので、
+移行の commit に入れない。絞るなら別の決定として記録する。
+
+### `/health` は追加であって移植ではない
+
+移行前、`/health` は `app.ts` にだけ在り、deploy される SvelteKit 側には無く、
+実測で **404** だった（superproject の `scripts/verify-appview-facade.cljs` も
+`health-only-in-undeployed-facade:orgs/cloud-itonami/app-open-swift` として独立に
+報告していた）。cljs 版はこれを足す。**足したことを隠さない** ——
+route 表の `:route/origin` が `:added` / `:ported` を持ち、ページの表に
+「追加」「移植」として出る。
+
+### UI
+
+基盤は jp-go-digital-design-system（skill `kotoba-uiux` が定める新規 UI の base）。
+色・寸法は `--hig-*` トークン契約のみ、app 固有 CSS は 3 行。CSS は
+`shadow.resource/inline` で bundle に焼く（design system の外部リクエストゼロ方針）。
+決定論的 audit で **100.00 / 100**（gate 95）。`--extra-axes` で 12 軸全部を
+当てても 100.00。
+
+## 検証（この ADR を書いた時点で実際に通したもの）
+
+- `openswift.route-test`: **6 tests / 33 assertions、0 failures**（nbb、ビルド不要）
+- ページ描画 → design-quality **100.00**（10 軸）/ **100.00**（`--extra-axes`、12 軸）、gate PASS
+- `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings / 5.50s**、
+  `dist/worker.js` 247,829 B
+- `scripts/smoke-worker.cljs`: bundle を import して **20 項目すべて PASS**、exit 0。
+  bundle が無いときは exit **2**（0 とも 1 とも別）
+- `scripts/verify-docs-claims.cljs`: 全 claim PASS、exit 0
+- **`wrangler dev --local`（実 workerd）で全 route を実測**（deploy はしていない）:
+
+      GET  /            -> 200 text/html   （DADS の CSS 45 箇所、route 表、撤去一覧つき）
+      GET  /health      -> 200 {\"ok\":true,\"app\":\"open-swift\",\"runtime\":\"cljs\",\"routes\":[…]}
+      POST /xrpc/       -> 400
+      POST /xrpc/a/b    -> 502 {\"error\":\"MCP router unreachable\",\"url\":\"https://mcp.etzhayyim.com/…\"}
+      OPTIONS /xrpc/x   -> 204
+      GET  /xrpc/x      -> 405 (allow: POST, OPTIONS)
+      GET  /nope        -> 404
+      POST /health      -> 405 (allow: GET)
+      GET  /dodaf       -> 404   （未 deploy だった app.ts の面を復活させていない）
+
+  **描画して採点したページと、bundle が実際に返したページは sha256 が一致する**
+  （`e5ea57fe…`、84,739 B）。採点した対象と出荷する対象が同じものであることを、
+  推測ではなく hash で確かめた。
+
+### compatibility_flags は実測してから外した
+
+`nodejs_compat` は SvelteKit の `adapter-cloudflare` が要求していたもので、
+cljs の `:esm` bundle には要らない。**憶測で消さず、flag 無しの設定のまま
+`wrangler dev --local` を起動して上の 9 route を実測してから撤去した。**
+`assets`（消えた `svelte/.svelte-kit/cloudflare/client` を指していた）も同様に撤去し、
+`APP_FRAMEWORK` は `sveltekit-edge-bff` → `cljs-shadow-esm-worker` に直した。
+
+### 検査が「落ちない」ものになっていないことを、壊して確かめた
+
+5 つの変異を **1 つずつ** 当てた（同時に当てると互いを隠す）。詳細は
+`docs/operator-quickstart.md` §6。
+
+| # | 壊したもの | 落ちた検査 |
+|---|---|---|
+| M1 | `worker.cljs` の var を存在しない名前に | **build が exit 1**（`:warnings-as-errors` が効いている） |
+| M2 | `:warnings-as-errors` を `:build-options` へ移す | 検証器の `warnings-as-errors-under-compiler-options` |
+| M3 | `(rc/inline \"jp_go_dds/dds.css\")` を `\"\"` に | smoke の `page carries the stylesheet itself` **のみ**。`page uses the design system components` は**緑のまま** |
+| M4 | view が route 表でなく固定値を描く | smoke の route 広告と、検証器の `page-renders-route-table` |
+| M5 | `wrangler.jsonc` の `main` をビルド出力以外へ | 検証器の `wrangler-main` と `wrangler-main-is-the-shadow-bundle` |
+
+M3 が要点である。**「`dads-table` が在る」だけの検査は落ちない** —— それは view が
+出力する markup であって、stylesheet が 1 バイトも入っていないページにも現れる。
+実測（この repo のページ、CSS 有 / 無）: `class=\"dads-table\"` は **2 / 2**（変わらない）、
+`--color-primitive-blue` は **45 / 0**。「ライブラリを呼んだ」と「stylesheet が実際に
+入った」は別の主張なので、検査を 2 つに割ってある。
+
+## Consequences
+
+- appview の TypeScript は **0 本**、Svelte は **0 本**。移行前は appview だけで
+  TypeScript 5 本 + Svelte 1 本 + JS 1 本だった。撤去した 5 パスは
+  `not-carried-over` から読まれて検査されるので、戻れば落ちる。
+- **`kotoba/` の TypeScript 7 本はそのまま残る**（件数と 7 件の sha256 を固定）。
+  正本言語のファイルは 4 本（`route.cljc` / `view.cljc` / `worker.cljs` /
+  `route_test.cljc`）。
+- 継承した宣言ファイル（BPMN 2 / DMN 1 / DoDAF 6 / Form 2）と `README.edn` /
+  `migration.edn` / `worker/kotodama.jsonld` は 1 バイトも変わっていない
+  （sha256 を検証器に固定）。
+- ホストは相変わらず NXDOMAIN である。**移行はそれを直さない。** deploy するか
+  retire するかは別の決定。
+- README.md の前版が記録した §3-A〜C（`kotoba/` と `app.ts` の custody 矛盾、
+  同名 4 関数の契約のずれ、送信者自己申告の制裁スクリーニング）は**まだ在る**。
+  移行はそれらを直していない —— どちらが正本かはこの repo の中からは決まらず、
+  それは移行とは別の決定である。
+"}]

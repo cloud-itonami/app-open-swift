@@ -1,176 +1,227 @@
 # operator quickstart — app-open-swift
 
-**2026-08-18 に、node_modules / lockfile / `.svelte-kit` を全部消した状態から
-上から下まで実走した手順**だけを書く。踏めない手順は書かない。実測値（exit code・
-件数・バイト数・HTTP status）はそのとき出たものである。
+**2026-08-19 に実際に走らせたコマンドと、そのとき出た出力だけ**を書く。
+踏めない手順は書かない。実測値（exit code・件数・バイト数・HTTP status）は
+そのとき出たものである。
 
-所要: §1 の `npm install` が **実測 189 秒**（git 依存の `tsc` 準備 install が大半）。
-残りはいずれも秒単位で、§3 の `wrangler dev` の起動待ちが 25 秒ほど。
+前提: superproject は `/Users/junkawasaki/github/com-junkawasaki`、この repo は
+`orgs/cloud-itonami/app-open-swift`。以下は repo root からの相対で書く。
 
 ## 0. この端末の前提（repo の欠陥ではない）
 
-`npm install` がこのマシンで `EALLOWSCRIPTS` で落ちる:
+§5 の `kotoba/` だけは `npm install` が要る。このマシンではそれが
+`EALLOWSCRIPTS` で落ちる:
 
 ```
 npm error code EALLOWSCRIPTS
 npm error --allow-scripts is not allowed in project-scoped installs.
 ```
 
-`~/.npmrc` の `allow-scripts[]=` が、git 依存の準備 install
-（`npm install --force …`）に漏れて渡り、npm 11.16.0 がそれを拒否する。
-**空の userconfig で隔離すると通る**:
+`~/.npmrc` の `allow-scripts[]=` が git 依存の準備 install に漏れて渡り、
+npm がそれを拒否する。**空の userconfig で隔離すると通る**:
 
 ```bash
 : > /tmp/empty-npmrc
-export npm_config_userconfig=/tmp/empty-npmrc     # 以降のすべての npm に効かせる
+export npm_config_userconfig=/tmp/empty-npmrc
 ```
 
-以下の手順はこれを export 済みとして書く。**この症状を repo 側で直さないこと** ——
-`package.json` にも `.npmrc` にもこの repo は関与していない。
+**この症状を repo 側で直さないこと** —— `package.json` にも `.npmrc` にも
+この repo は関与していない。§1〜§4 は npm install 不要（`npx --yes` が
+その場で取ってくる）。
 
-## 1. `kotoba/` — 型検査とテスト（唯一テストが在る面）
+## 1. テスト（ビルド不要、いちばん速い）
 
 ```bash
+K=/Users/junkawasaki/github/com-junkawasaki/orgs/kotoba-lang
+CP="src:test:$K/jp-go-digital-design-system/src:$K/html/src:$K/css/src"
+cat > /tmp/run-tests.cljs <<'EOF'
+(require '[cljs.test :refer [run-tests]] 'openswift.route-test)
+(run-tests 'openswift.route-test)
+EOF
+npx --yes nbb --classpath "$CP" /tmp/run-tests.cljs
+```
+
+実測:
+
+```
+Testing openswift.route-test
+
+Ran 6 tests containing 33 assertions.
+0 failures, 0 errors.
+```
+
+## 2. ビルド（**必ず resource-guard 経由**）
+
+superproject の規約で高負荷 build は同時 1 本。**exit 2 は「並んでいる」で
+あって失敗ではない**ので、待つのではなく再試行する。
+
+```bash
+for i in $(seq 1 60); do
+  node /Users/junkawasaki/github/com-junkawasaki/scripts/resource-guard.mjs \
+    run build -- npx --yes shadow-cljs release worker > /tmp/b.log 2>&1
+  rc=$?
+  [ $rc -eq 0 ] && { echo "BUILD OK"; tail -1 /tmp/b.log; break; }
+  [ $rc -ne 2 ] && { echo "BUILD FAILED rc=$rc"; tail -20 /tmp/b.log; break; }
+  sleep 45
+done
+```
+
+実測: `[:worker] Build completed. (55 files, 12 compiled, 0 warnings, 7.84s)` /
+`dist/worker.js` = **247,829 B** / sha256 `3d33f33ac0aa8d31…`
+
+**cold cache からは byte 再現する。** `:esm` の出力は増分ビルドだと byte が
+変わる（安定して変わる）ので、sha を比べるときは必ず先に消す:
+
+```bash
+rm -rf .shadow-cljs dist    # これをやらないと sha 比較が偽の警報を出す
+```
+
+## 3. smoke — ビルド済み bundle を実際に叩く
+
+```bash
+npx --yes nbb scripts/smoke-worker.cljs dist/worker.js ; echo "exit=$?"
+```
+
+実測: **20 項目すべて PASS**、`OK  the built bundle answers as the route table says`、
+exit **0**。
+
+exit の意味は 3 つに分かれている:
+
+| exit | 意味 | 確認方法 |
+|---|---|---|
+| 0 | 全部期待どおり | 上 |
+| 1 | 期待と違う | §6 の M3 |
+| **2** | **判定できなかった**（bundle が無い / import が落ちた） | `npx --yes nbb scripts/smoke-worker.cljs /tmp/nope.js` → exit 2 |
+
+**2 を 0 とも 1 とも別にしてあるのが要点。** 「検査できなかった」が
+「検査して問題なかった」と同じ値を返すと、沈黙が緑として積み上がる。
+
+## 4. 検証器 — 散文の数字を木から引き直す
+
+```bash
+npx --yes nbb scripts/verify-docs-claims.cljs . ; echo "exit=$?"
+```
+
+実測: `SCANNED 35` / `GONE-LIST 5` / 20 claim すべて PASS / exit **0**。
+
+読めなかったものが在れば **exit 2** で終わり、`Refusing to report a pass` と
+言う（0 件を clean と数えない）。
+
+## 5. `kotoba/` — 移行対象ではない TypeScript ライブラリ
+
+```bash
+export npm_config_userconfig=/tmp/empty-npmrc   # §0
 cd kotoba
 npm install          # 実測 exit 0 / node_modules 75 entries
 npm run typecheck    # 実測 exit 0（tsc --noEmit、出力なし）
 npm test             # 実測 exit 0 → "Test Files 1 passed (1)" / "Tests 7 passed (7)"
 ```
 
-`npm install` は `@etzhayyim/sdk` と `@etzhayyim/sdk-mock` を **git 依存**として
-（commit 固定で）取りに行くので、ここだけネットワークと `tsc` の実行が要る。
-`npm warn allow-scripts` の警告が数行出るが、`prepare: tsc` の告知であって失敗では
-ない。
-
 テストは `MockEtzhayyim` に対して走るので**外部 PDS も D1 も要らない**。
+`npm warn allow-scripts` が数行出るが `prepare: tsc` の告知であって失敗ではない。
 
-### テストが本当に discriminate することを自分で確かめる
-
-README §4 の 4 変異は、この手順で再現できる（**壊す → 赤 → 復元 → 緑**）:
-
-```bash
-cd kotoba
-cp src/registry.ts /tmp/registry.bak
-perl -0pi -e 's{country: bic\.slice\(4, 6\)}{country: bic.slice(0, 2)}' src/registry.ts
-npx vitest run       # 実測 exit 1 — "registers + reads back, derives country from BIC" のみ赤
-cp /tmp/registry.bak src/registry.ts
-git diff --exit-code -- src/registry.ts   # 実測 exit 0（byte 一致）
-npx vitest run       # 実測 exit 0 → 7 passed
-```
-
-**落ちたテストが、壊した不変条件と一致していることを確かめる。** 別のテストが
-道連れで赤くなるなら、それは実演になっていない。
-
-## 2. `worker/svelte/` — 実際にデプロイされる面のビルド
+## 6. 実 workerd で動かす（deploy はしない）
 
 ```bash
-cd worker/svelte
-npm install          # 実測 exit 0
+npx --yes wrangler@latest dev --local --config worker/wrangler.jsonc --port 8799
 ```
 
-ビルドは**必ず resource-guard 経由**で起動する（superproject の規約: 高負荷 build は
-同時 1 本）:
+実測（`compatibility_flags` を**外した**状態で。§7）:
+
+```
+GET     /            -> 200   text/html
+GET     /health      -> 200   {"ok":true,"app":"open-swift","runtime":"cljs","routes":["/","/health","/xrpc/:nsid"]}
+POST    /xrpc/       -> 400
+POST    /xrpc/a/b    -> 502   {"error":"MCP router unreachable","url":"https://mcp.etzhayyim.com/…"}
+OPTIONS /xrpc/x      -> 204
+GET     /xrpc/x      -> 405   (allow: POST, OPTIONS)
+GET     /nope        -> 404
+POST    /health      -> 405   (allow: GET)
+GET     /dodaf       -> 404
+```
+
+`GET /` が返した HTML は、§1 の描画で採点したページと **sha256 が一致する**
+（`e5ea57fe…`、84,739 B）。
+
+## 7. `compatibility_flags` を外した根拠
+
+`nodejs_compat` は SvelteKit の `adapter-cloudflare` が要求していたもので、
+cljs の `:esm` bundle には要らない。**憶測で消さず**、flag 無しの設定のまま
+§6 を通してから撤去した。`assets`（消えた `svelte/.svelte-kit/cloudflare/client`
+を指していた）も同様に撤去し、`APP_FRAMEWORK` は `sveltekit-edge-bff` →
+`cljs-shadow-esm-worker` に直した。
+
+## 8. 検査が「落ちない」ものになっていないことを、壊して確かめる
+
+**変異は 1 つずつ当てる。** 2 つ同時だと互いを隠す。以下は全部実測。
+
+### M1 — 存在しない var を参照する（`:warnings-as-errors` が効いているか）
 
 ```bash
-node <superproject>/scripts/resource-guard.mjs run build -- npm run build
-# 実測 exit 0 / "✓ built in 4.23s" / .svelte-kit/cloudflare/_worker.js = 4,335 B
+perl -0pi -e 's{\(route/dispatch \(\.-method req\) path\)}{(route/dispatch-NO-SUCH-VAR (.-method req) path)}' src/openswift/worker.cljs
+# 再ビルド → 実測 rc=1、"ERROR ... Use of undeclared Var openswift.route/dispatch-NO-SUCH-VAR"
 ```
 
-`npm_config_userconfig` は **export しておく**こと —— `resource-guard.mjs` は
-`spawnSync` で第 1 引数をコマンド名として扱うので、`VAR=… npm run build` の形で
-渡すと `ENOENT` になる（実測）。
+### M2 — `:warnings-as-errors` を `:build-options` へ移す
 
-型検査:
+これが**この移行でいちばん重要な実演**である。
+
+- 検証器: `warnings-as-errors-under-compiler-options` と
+  `warnings-as-errors-not-under-build-options` の **2 つが FAIL**、exit 1。
+- **その状態で M1 をもう一度当てると、ビルドは `rc=0` で通る**
+  （`55 files, 1 compiled, 1 warnings` —— warning のまま bundle を書き出す）。
+- **その bundle を smoke に掛けると
+  `UNDETERMINED could not exercise the bundle: Cannot read properties of undefined
+  (reading 'h')` で exit 2。**
+
+つまり「ビルドが通った」は検査ではなかった。**しかも grep 系の検査では捕まらない**
+—— `shadow-cljs.edn` の該当箇所のコメント自体が `:warnings-as-errors` と
+`:build-options` の両方の文字列を含むので、**壊れた設定に対しても grep は緑になる**
+（実測）。だから検証器は **EDN として parse** している。
+
+### M3 — 焼いた CSS を空文字にする（design system の検査が 2 本要る理由）
 
 ```bash
-npm run check        # 実測 exit 0 → "COMPLETED 163 FILES 0 ERRORS 0 WARNINGS"
+perl -0pi -e 's{\(rc/inline "jp_go_dds/dds\.css"\)}{""}' src/openswift/worker.cljs
 ```
 
-**`worker/src/app.ts` はこの手順に含まれない。** `worker/` に `package.json` も
-`tsconfig.json` も無いので、ビルドも型検査もされない（README §3-F）。
+実測（このページで、CSS 有 / 無）:
 
-## 3. ローカルで route を実測する
+| token | 有 | 無 |
+|---|---|---|
+| `class="dads-table"` | 2 | **2** ← **変わらない。この検査は落ちない** |
+| `dads-table`（部分一致） | 79 | **11** ← 0 にならない |
+| `--color-primitive-blue` | 45 | **0** ← これだけが判別する |
 
-`worker/` に降りて `wrangler dev` を上げる。`wrangler.jsonc` の `main` が §2 の
-生成物を指しているので、**先に §2 を通しておくこと**（通っていないと起動しない）。
+smoke の結果: `page uses the design system components` は **PASS のまま**、
+`page carries the stylesheet itself` **だけ FAIL**、exit 1。
+「view がライブラリを呼んだ」と「stylesheet が実際に bundle に入った」は
+**別の主張**なので、検査を 2 本に割ってある。
 
-```bash
-cd worker
-wrangler dev --local --port 8801 --ip 127.0.0.1
-```
+### M4 — ページが route 表でなく固定値を描く
 
-`Ready on http://127.0.0.1:8801` が出るまで待つ（実測で 25 秒ほど。
-`compatibility_date 2026-04-20` に対する fallback 警告と、このマシンの fd 上限に
-由来する `EMFILE: too many open files, watch` が出るが、**サーバは起動する**）。
+unit test が 2 件 FAIL（`/health` と `/xrpc/:nsid` がページに出ていない）、
+検証器の `page-renders-route-table` が FAIL。
 
-別の shell から:
+### M5 — `wrangler.jsonc` の `main` をビルド出力以外へ
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8801/            # 実測 200
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8801/health      # 実測 404
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8801/_app/meta   # 実測 404
-curl -s -o /dev/null -w '%{http_code}\n' -X OPTIONS http://127.0.0.1:8801/xrpc/anything   # 実測 204
-curl -s -X POST -H 'content-type: application/json' -d '{}' -w '\nHTTP %{http_code}\n' \
-  http://127.0.0.1:8801/xrpc/com.etzhayyim.apps.openSwift.listInstitutions
-# 実測 → {"message":"Internal Error"} / HTTP 500
-```
+検証器の `wrangler-main` と `wrangler-main-is-the-shadow-bundle` が FAIL。
 
-**この 500 は期待値である**（§4 の DNS 事情による。README §3-D/E）。**`/health` が
-404 なのも期待値**であって、環境の失敗ではない —— `/health` を持つ `app.ts` は
-デプロイされていない。
+### M6 — 撤去した `worker/src/app.ts` が戻ってくる
 
-終わったら止める。ポートが解放されることまで確認する:
+検証器の `removed-by-migration-absent` が FAIL し、**path を名指しする**。
+（`appview-ts-files` は untracked なので緑のまま —— 名指しの検査と件数の検査は
+別のものを見ている。）
 
-```bash
-pkill -f "wrangler dev --local --port 8801"
-lsof -nP -iTCP:8801 -sTCP:LISTEN     # 実測 空
-```
+### M7 — `kotoba/` が黙って増える
 
-## 4. 転送先が実在するかを見る
+検証器の `kotoba-files`（7→8）と `tracked-files` が FAIL。
+`appview-ts-files` は緑のまま（`kotoba/` の増加を appview の TypeScript として
+数えない）。
 
-```bash
-for h in open-swift.etzhayyim.com mcp.etzhayyim.com etzhayyim.com; do
-  printf '%-30s %s\n' "$h" "$(dig +short "$h" | tr '\n' ' ')"
-done
-# 実測:
-#   open-swift.etzhayyim.com       （空）
-#   mcp.etzhayyim.com              （空）
-#   etzhayyim.com                  104.21.51.111 172.67.179.128
+### 復元の確認
 
-curl -s -o /dev/null -w '%{http_code}\n' https://etzhayyim.com/    # 実測 200（対照）
-```
-
-前 2 つが空で 3 つ目が 200 なら、**測定側は正常で、この repo の route と転送先が
-まだ存在しない**ということ。§3 の POST が 500 になるのはこれが原因で、
-`+server.ts` の `fetch` に `catch` が無いため 502 ではなく汎用 500 になる。
-
-## 5. デプロイ（この repo からは、まだできない）
-
-`wrangler deploy` を打つ前に、少なくとも次の 3 つが要る。**現状どれも無い**:
-
-1. **`open-swift.etzhayyim.com` の DNS レコード** —— `wrangler.jsonc` の `routes` が
-   `open-swift.etzhayyim.com/*` を張るが、いま解決しない（§4）。
-2. **転送先 `mcp.etzhayyim.com`** —— 解決しない。デプロイしても `POST /xrpc/…` は
-   §3 と同じ 500 を返すだけになる。
-3. **何をデプロイするかの決定** —— 今 `main` が指しているのは 2 route の proxy で、
-   6 XRPC を持つ `app.ts` ではない（README 冒頭の表）。`app.ts` を出すなら
-   `d1_databases` binding・`worker/package.json`・`tsconfig.json` が別途要る
-   （README §3-F）。
-
-superproject の規約により、**デプロイは `origin/main` を包含した checkout からのみ**
-行う（`wrangler-deploy-main-sync-guard.cljs` が遅れた checkout の `wrangler deploy` を
-deny する）。
-
-## 6. 手順どおり動かすと出る生成物
-
-§1〜§3 を実行すると、`git status` に次の 6 種が出る:
-
-```
-kotoba/node_modules/          worker/svelte/node_modules/
-kotoba/package-lock.json      worker/svelte/package-lock.json
-worker/.wrangler/             worker/svelte/.svelte-kit/
-```
-
-この 6 種だけを `.gitignore` に入れてある（2026-08-18 に追加。それ以前この repo に
-`.gitignore` は無かった）。**これ以外を無視しない** —— 生成物でないものを隠すと、
-次に測る人が「無い」と読む。
+各変異のあと、pristine から戻して `git diff --exit-code` が exit 0 になること、
+**`rm -rf .shadow-cljs dist` してから**再ビルドした `dist/worker.js` の sha256 が
+`3d33f33ac0aa8d31…` に一致することを毎回確認した。**cold start を省くと
+この比較は偽の警報を出す**（§2）。
