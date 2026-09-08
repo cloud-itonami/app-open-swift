@@ -23,7 +23,7 @@
          '["node:child_process" :as cp]
          '["node:crypto" :as crypto]
          '[cljs.reader :as reader]
-         '[clojure.string :as str])
+         '[kotoba.lang.text :as str])
 
 (def root (or (first (remove #(str/starts-with? % "--") *command-line-args*)) "."))
 
@@ -163,7 +163,7 @@
                   (count (filter #{"nodejs_compat" "nodejs_als"}
                                  (or (get j "compatibility_flags") []))))
           (check! :app-framework-not-sveltekit true
-                  (not (str/includes? (str/lower-case (str (get-in j ["vars" "APP_FRAMEWORK"])))
+                  (not (str/includes? (str/lower (str (get-in j ["vars" "APP_FRAMEWORK"])))
                                       "svelte")))
           ;; --- :warnings-as-errors, by PARSING the EDN -----------------------
           ;; Never by grepping: the comment above the key in shadow-cljs.edn
