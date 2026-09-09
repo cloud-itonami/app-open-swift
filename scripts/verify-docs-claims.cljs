@@ -28,7 +28,7 @@
 (def root (or (first (remove #(str/starts-with? % "--") *command-line-args*)) "."))
 
 (def claims
-  {:tracked-files 35
+  {:tracked-files 36
    :appview-ts-files 0            ; the appview holds no TypeScript at all
    :svelte-artifacts 0            ; no .svelte / svelte.config / svelte/ dir survives
    :sveltekit-compat-flags 0      ; nodejs_compat / nodejs_als were adapter-cloudflare's
