@@ -11,3 +11,6 @@ node_modules/
 # commit しない。
 kotoba/node_modules/
 kotoba/package-lock.json
+
+# nbb dependency cache -- a build artifact, not source
+.nbb/
