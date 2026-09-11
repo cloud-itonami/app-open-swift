@@ -25,7 +25,7 @@
    ;; reads `[:compiler-options :warnings-as-errors]`
    ;; (shadow/build/compiler.clj `should-warning-throw?`). Putting it under
    ;; :build-options is silently ignored, which is the same failure this option
-   ;; exists to prevent: a fix that cannot fail. scripts/verify-docs-claims.cljs
+   ;; exists to prevent: a fix that cannot fail. scripts/verify-docs-claims.cljk
    ;; asserts the placement by PARSING this file, not by grepping it -- a grep
    ;; would be satisfied by this very comment.
    :compiler-options {:output-feature-set :es2020
