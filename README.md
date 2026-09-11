@@ -17,9 +17,9 @@
 ## 1. deploy される面 — `src/openswift/`
 
 ```
-src/openswift/route.cljc    判断（どの handler が答えるか / 移植しなかったもの）
-src/openswift/view.cljc     ページ（jp-go-dds の hiccup）
-src/openswift/worker.cljs   Request/Response に触る唯一の層
+src/openswift/route.cljk    判断（どの handler が答えるか / 移植しなかったもの）
+src/openswift/view.cljk     ページ（jp-go-dds の hiccup）
+src/openswift/worker.cljk   Request/Response に触る唯一の層
         ↓ shadow-cljs :target :esm
 dist/worker.js              worker/wrangler.jsonc の main が指すもの
 ```
@@ -58,7 +58,7 @@ dist/worker.js              worker/wrangler.jsonc の main が指すもの
 
 つまり dead code ではない。**「TypeScript だから」で消すのは移行ではなく破壊である。**
 移すには `@etzhayyim/sdk` の cljs 面が要り、それは別の決定。
-`scripts/verify-docs-claims.cljs` が **7 ファイルという件数と 7 件すべての sha256**
+`scripts/verify-docs-claims.cljk` が **7 ファイルという件数と 7 件すべての sha256**
 を固定しているので、黙って増えることも黙って書き換わることもできない
 （変異 M7 で実際に落ちることを確認済み）。
 

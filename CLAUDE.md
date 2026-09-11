@@ -64,6 +64,6 @@ What actually runs is in [`docs/operator-quickstart.md`](docs/operator-quickstar
 
 ```bash
 npx shadow-cljs release worker          # via the superproject resource guard
-npx nbb scripts/smoke-worker.cljs dist/worker.js
+npx nbb scripts/smoke-worker.cljk dist/worker.js
 npx wrangler dev --local --config worker/wrangler.jsonc
 ```

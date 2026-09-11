@@ -79,7 +79,7 @@ rm -rf .shadow-cljs dist    # これをやらないと sha 比較が偽の警報
 ## 3. smoke — ビルド済み bundle を実際に叩く
 
 ```bash
-npx --yes nbb scripts/smoke-worker.cljs dist/worker.js ; echo "exit=$?"
+npx --yes nbb scripts/smoke-worker.cljk dist/worker.js ; echo "exit=$?"
 ```
 
 実測: **20 項目すべて PASS**、`OK  the built bundle answers as the route table says`、
@@ -91,7 +91,7 @@ exit の意味は 3 つに分かれている:
 |---|---|---|
 | 0 | 全部期待どおり | 上 |
 | 1 | 期待と違う | §6 の M3 |
-| **2** | **判定できなかった**（bundle が無い / import が落ちた） | `npx --yes nbb scripts/smoke-worker.cljs /tmp/nope.js` → exit 2 |
+| **2** | **判定できなかった**（bundle が無い / import が落ちた） | `npx --yes nbb scripts/smoke-worker.cljk /tmp/nope.js` → exit 2 |
 
 **2 を 0 とも 1 とも別にしてあるのが要点。** 「検査できなかった」が
 「検査して問題なかった」と同じ値を返すと、沈黙が緑として積み上がる。
@@ -99,7 +99,7 @@ exit の意味は 3 つに分かれている:
 ## 4. 検証器 — 散文の数字を木から引き直す
 
 ```bash
-npx --yes nbb scripts/verify-docs-claims.cljs . ; echo "exit=$?"
+npx --yes nbb scripts/verify-docs-claims.cljk . ; echo "exit=$?"
 ```
 
 実測: `SCANNED 35` / `GONE-LIST 5` / 20 claim すべて PASS / exit **0**。
@@ -158,7 +158,7 @@ cljs の `:esm` bundle には要らない。**憶測で消さず**、flag 無し
 ### M1 — 存在しない var を参照する（`:warnings-as-errors` が効いているか）
 
 ```bash
-perl -0pi -e 's{\(route/dispatch \(\.-method req\) path\)}{(route/dispatch-NO-SUCH-VAR (.-method req) path)}' src/openswift/worker.cljs
+perl -0pi -e 's{\(route/dispatch \(\.-method req\) path\)}{(route/dispatch-NO-SUCH-VAR (.-method req) path)}' src/openswift/worker.cljk
 # 再ビルド → 実測 rc=1、"ERROR ... Use of undeclared Var openswift.route/dispatch-NO-SUCH-VAR"
 ```
 
@@ -182,7 +182,7 @@ perl -0pi -e 's{\(route/dispatch \(\.-method req\) path\)}{(route/dispatch-NO-SU
 ### M3 — 焼いた CSS を空文字にする（design system の検査が 2 本要る理由）
 
 ```bash
-perl -0pi -e 's{\(rc/inline "jp_go_dds/dds\.css"\)}{""}' src/openswift/worker.cljs
+perl -0pi -e 's{\(rc/inline "jp_go_dds/dds\.css"\)}{""}' src/openswift/worker.cljk
 ```
 
 実測（このページで、CSS 有 / 無）:

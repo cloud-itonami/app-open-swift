@@ -35,7 +35,7 @@
   "移植しなかったもの。**黙って消していない** —— path と、消した理由を
   実測として持つ。
 
-  ここに並ぶ path は `scripts/verify-docs-claims.cljs` が **tree から不在で
+  ここに並ぶ path は `scripts/verify-docs-claims.cljk` が **tree から不在で
   あること**を検査する。つまりこの表は散文ではなく、木と突き合わされる主張
   である。戻ってきたら落ちる。
 

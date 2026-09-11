@@ -45,9 +45,9 @@ runtime 順序: kotoba wasm > clojurewasm > ClojureScript > nbb）。TypeScript 
 
 **appview を ClojureScript に移し、appview の TypeScript と Svelte を撤去する。**
 
-    src/openswift/route.cljc    判断（どの handler が答えるか / 移植しなかったもの）
-    src/openswift/view.cljc     ページ（jp-go-dds の hiccup）
-    src/openswift/worker.cljs   Request/Response に触る唯一の層
+    src/openswift/route.cljk    判断（どの handler が答えるか / 移植しなかったもの）
+    src/openswift/view.cljk     ページ（jp-go-dds の hiccup）
+    src/openswift/worker.cljk   Request/Response に触る唯一の層
             ↓ shadow-cljs :target :esm
     dist/worker.js              worker/wrangler.jsonc の main が指すもの
 
@@ -75,7 +75,7 @@ ingress capability が :native-aot / :wasm-aot とも pending だからである
 
 つまり dead code ではない。**「TypeScript だから」で消すのは移行ではなく破壊
 である。** 移すには `@etzhayyim/sdk` の cljs 面が要り、それは別の決定である。
-`scripts/verify-docs-claims.cljs` が **7 ファイルという件数と、7 件すべての
+`scripts/verify-docs-claims.cljk` が **7 ファイルという件数と、7 件すべての
 sha256** を固定しているので、黙って増えることも黙って書き換わることもできない。
 
 ### 移植しなかった経路（黙って消していない）
@@ -136,9 +136,9 @@ route 表の `:route/origin` が `:added` / `:ported` を持ち、ページの�
 - ページ描画 → design-quality **100.00**（10 軸）/ **100.00**（`--extra-axes`、12 軸）、gate PASS
 - `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings / 5.50s**、
   `dist/worker.js` 247,829 B
-- `scripts/smoke-worker.cljs`: bundle を import して **20 項目すべて PASS**、exit 0。
+- `scripts/smoke-worker.cljk`: bundle を import して **20 項目すべて PASS**、exit 0。
   bundle が無いときは exit **2**（0 とも 1 とも別）
-- `scripts/verify-docs-claims.cljs`: 全 claim PASS、exit 0
+- `scripts/verify-docs-claims.cljk`: 全 claim PASS、exit 0
 - **`wrangler dev --local`（実 workerd）で全 route を実測**（deploy はしていない）:
 
       GET  /            -> 200 text/html   （DADS の CSS 45 箇所、route 表、撤去一覧つき）

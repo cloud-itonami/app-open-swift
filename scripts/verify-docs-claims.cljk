@@ -16,7 +16,7 @@
 ;; migration replaced. It is NOT dead code. It is pinned by file count and by
 ;; content hash so it can neither grow silently nor be quietly edited.
 ;;
-;; Usage:  nbb scripts/verify-docs-claims.cljs [<dir>]     (<dir> FIRST, default ".")
+;; Usage:  nbb scripts/verify-docs-claims.cljk [<dir>]     (<dir> FIRST, default ".")
 ;; Exit:   0 every claim holds · 1 a claim is false · 2 could not answer
 
 (require '["node:fs" :as fs]
@@ -111,9 +111,9 @@
     ;; it fails if any of it comes back. The list is not hand-kept: it is read
     ;; from route.cljc's `not-carried-over`, which is the SAME value the page
     ;; renders. So the page, the prose and this check cannot drift apart.
-    (let [r (slurp* "src/openswift/route.cljc")]
+    (let [r (slurp* "src/openswift/route.cljk")]
       (if (nil? r)
-        (undet! "src/openswift/route.cljc unreadable")
+        (undet! "src/openswift/route.cljk unreadable")
         (let [gone (try (->> (reader/read-string
                               (subs r (str/index-of r "(def not-carried-over")))
                              (drop-while (complement vector?)) first
@@ -192,8 +192,8 @@
     ;; table) and NOT by forbidding a substring: "routeCount" appears in this
     ;; repo's own prose describing the old defect, so a check that forbade the
     ;; string would be a check about comments, not about code.
-    (let [v (slurp* "src/openswift/view.cljc")
-          w (slurp* "src/openswift/worker.cljs")]
+    (let [v (slurp* "src/openswift/view.cljk")
+          w (slurp* "src/openswift/worker.cljk")]
       (if (or (nil? v) (nil? w))
         (undet! "view.cljc or worker.cljs unreadable")
         (check! :page-renders-route-table true
