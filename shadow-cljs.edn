@@ -9,7 +9,7 @@
 ;; in no bundle at all and had no package.json to build it with.
 ;;
 ;; :warnings-as-errors is not decoration. shadow treats an undeclared or renamed
-;; var as a WARNING, so `shadow-cljs release worker` exits 0 while writing a
+;; var as a WARNING, so `amu compile --target wasm32-browser worker` exits 0 while writing a
 ;; bundle that misbehaves on the first request -- in some repos a thrown
 ;; `Cannot read properties of undefined`, in others a 200 serving a degraded
 ;; page. "The build succeeded" was therefore not a check at all: it could not

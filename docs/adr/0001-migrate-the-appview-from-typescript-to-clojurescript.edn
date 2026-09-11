@@ -134,7 +134,7 @@ route 表の `:route/origin` が `:added` / `:ported` を持ち、ページの�
 
 - `openswift.route-test`: **6 tests / 33 assertions、0 failures**（nbb、ビルド不要）
 - ページ描画 → design-quality **100.00**（10 軸）/ **100.00**（`--extra-axes`、12 軸）、gate PASS
-- `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings / 5.50s**、
+- `amu compile --target wasm32-browser worker`: **55 files / 12 compiled / 0 warnings / 5.50s**、
   `dist/worker.js` 247,829 B
 - `scripts/smoke-worker.cljk`: bundle を import して **20 項目すべて PASS**、exit 0。
   bundle が無いときは exit **2**（0 とも 1 とも別）

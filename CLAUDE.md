@@ -63,7 +63,7 @@ previous version of this file gave three commands, none of which could run.
 What actually runs is in [`docs/operator-quickstart.md`](docs/operator-quickstart.md):
 
 ```bash
-npx shadow-cljs release worker          # via the superproject resource guard
-npx nbb scripts/smoke-worker.cljk dist/worker.js
+amu compile --target wasm32-browser worker          # via the superproject resource guard
+kbb --backend sci scripts/smoke-worker.cljk dist/worker.js
 npx wrangler dev --local --config worker/wrangler.jsonc
 ```

@@ -38,7 +38,7 @@ cat > /tmp/run-tests.cljs <<'EOF'
 (require '[cljs.test :refer [run-tests]] 'openswift.route-test)
 (run-tests 'openswift.route-test)
 EOF
-npx --yes nbb --classpath "$CP" /tmp/run-tests.cljs
+npx --yes kbb --backend sci --classpath "$CP" /tmp/run-tests.cljs
 ```
 
 実測:
@@ -58,7 +58,7 @@ superproject の規約で高負荷 build は同時 1 本。**exit 2 は「並ん
 ```bash
 for i in $(seq 1 60); do
   node /Users/junkawasaki/github/com-junkawasaki/scripts/resource-guard.mjs \
-    run build -- npx --yes shadow-cljs release worker > /tmp/b.log 2>&1
+    run build -- npx --yes amu compile --target wasm32-browser worker > /tmp/b.log 2>&1
   rc=$?
   [ $rc -eq 0 ] && { echo "BUILD OK"; tail -1 /tmp/b.log; break; }
   [ $rc -ne 2 ] && { echo "BUILD FAILED rc=$rc"; tail -20 /tmp/b.log; break; }
@@ -79,7 +79,7 @@ rm -rf .shadow-cljs dist    # これをやらないと sha 比較が偽の警報
 ## 3. smoke — ビルド済み bundle を実際に叩く
 
 ```bash
-npx --yes nbb scripts/smoke-worker.cljk dist/worker.js ; echo "exit=$?"
+npx --yes kbb --backend sci scripts/smoke-worker.cljk dist/worker.js ; echo "exit=$?"
 ```
 
 実測: **20 項目すべて PASS**、`OK  the built bundle answers as the route table says`、
@@ -91,7 +91,7 @@ exit の意味は 3 つに分かれている:
 |---|---|---|
 | 0 | 全部期待どおり | 上 |
 | 1 | 期待と違う | §6 の M3 |
-| **2** | **判定できなかった**（bundle が無い / import が落ちた） | `npx --yes nbb scripts/smoke-worker.cljk /tmp/nope.js` → exit 2 |
+| **2** | **判定できなかった**（bundle が無い / import が落ちた） | `npx --yes kbb --backend sci scripts/smoke-worker.cljk /tmp/nope.js` → exit 2 |
 
 **2 を 0 とも 1 とも別にしてあるのが要点。** 「検査できなかった」が
 「検査して問題なかった」と同じ値を返すと、沈黙が緑として積み上がる。
@@ -99,7 +99,7 @@ exit の意味は 3 つに分かれている:
 ## 4. 検証器 — 散文の数字を木から引き直す
 
 ```bash
-npx --yes nbb scripts/verify-docs-claims.cljk . ; echo "exit=$?"
+npx --yes kbb --backend sci scripts/verify-docs-claims.cljk . ; echo "exit=$?"
 ```
 
 実測: `SCANNED 35` / `GONE-LIST 5` / 20 claim すべて PASS / exit **0**。
