@@ -37,7 +37,7 @@
 3. **`app.ts` は D1 binding を持たない。** `SWIFT_DB` を 17 箇所で使うが
    `wrangler.jsonc` に `d1_databases` の項目は無い。
 
-この workspace の正本言語は cljs と kotoba である（superproject CLAUDE.md の
+この workspace の正本言語は cljs と kotoba である（superproject AGENTS.md の
 runtime 順序: kotoba wasm > clojurewasm > ClojureScript > nbb）。TypeScript は
 そこに無いので、上の 2 つの TypeScript のどちらを選んでも正本には着地しない。
 

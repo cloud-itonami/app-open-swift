@@ -121,7 +121,7 @@ parameter `[...path]` で受け、空のときだけ 400 にしていた。1 セ
   D1 に保存していた。`app.ts` を撤去したので**いま口座情報を保存する経路は無い**が、
   どちらが正本かという問いは解いていない。
 - **同名 4 関数の契約のずれ**（BIC 正規表現、`country` の導出、金額の型、ACK の権限、
-  status 語彙）。`kotoba/` 側だけが残ったので実害は減ったが、CLAUDE.md の設計意図と
+  status 語彙）。`kotoba/` 側だけが残ったので実害は減ったが、AGENTS.md の設計意図と
   `kotoba/` の実装はまだ完全には一致していない。
 - **制裁スクリーニングの入力が送信者の自己申告だった**（`app.ts`）。撤去済み。
 - **ホストが NXDOMAIN。** deploy するか retire するかは別の決定。
@@ -140,7 +140,7 @@ parameter `[...path]` で受け、空のときだけ 400 にしていた。1 セ
   SvelteKit BFF + BPMN/DMN/DoDAF）の別領域版。
 - **`cloud-itonami/app-ongakuka`** —— この移行の**テンプレート**。同じ
   route.cljc / view.cljc / worker.cljs + smoke + 検証器の形。
-- **`cloud-itonami/open-banking`** —— CLAUDE.md が "companion" と書いている相手。
+- **`cloud-itonami/open-banking`** —— AGENTS.md が "companion" と書いている相手。
   現在 GitHub で archived。
 
 ## 8. ライセンス
