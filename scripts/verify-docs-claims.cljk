@@ -1,5 +1,5 @@
 #!/usr/bin/env kbb
-;; verify-docs-claims — re-derive every number README.md, CLAUDE.md and
+;; verify-docs-claims — re-derive every number README.md, AGENTS.md and
 ;; docs/operator-quickstart.md state, from the tree itself, and fail when the
 ;; tree and the prose disagree.
 ;;
@@ -41,7 +41,7 @@
    :shadow-export "openswift.worker/handler"})
 
 ;; Inherited files this repository still carries BYTE-IDENTICAL. The migration
-;; touched none of them. worker/wrangler.jsonc, CLAUDE.md, README.md,
+;; touched none of them. worker/wrangler.jsonc, AGENTS.md, README.md,
 ;; docs/operator-quickstart.md and .gitignore left this set DELIBERATELY and are
 ;; checked by CONTENT below instead -- so an intended change and a stray one stay
 ;; distinguishable.
@@ -203,10 +203,10 @@
                      (str/includes? w ":routes route/routes")
                      (str/includes? w ":gone route/not-carried-over")))))
 
-    ;; --- CLAUDE.md no longer claims a TypeScript runtime --------------------
-    (let [c (slurp* "CLAUDE.md")]
+    ;; --- AGENTS.md no longer claims a TypeScript runtime --------------------
+    (let [c (slurp* "AGENTS.md")]
       (if (nil? c)
-        (undet! "CLAUDE.md unreadable")
+        (undet! "AGENTS.md unreadable")
         (check! :claude-md-describes-cljs true
                 (and (not (str/includes? c "**Runtime**: Single CF Worker (`src/app.ts`)"))
                      (not (str/includes? c "e7m actor deploy"))
@@ -219,4 +219,4 @@
     (js/process.exit 2))
   (if (seq f)
     (do (println (str "FAILED\t" (count f) " claim(s): " (str/join ", " (map name f)))) (js/process.exit 1))
-    (do (println "OK\tevery claim in README.md, CLAUDE.md and docs/operator-quickstart.md holds") (js/process.exit 0))))
+    (do (println "OK\tevery claim in README.md, AGENTS.md and docs/operator-quickstart.md holds") (js/process.exit 0))))
